@@ -90,6 +90,14 @@ export default async function handler(req, res) {
       const status = response.status;
       const location = response.headers.get("location");
 
+      // LOGGING UNTUK DEBUGGING
+      console.log("[ArbyX] Upstream response:", {
+        hostname: current.hostname,
+        status: status,
+        location: location,
+        contentType: response.headers.get("content-type")
+      });
+
       if ([301, 302, 303, 307, 308].includes(status)) {
         await response.body?.cancel();
 
@@ -126,28 +134,28 @@ export default async function handler(req, res) {
       const html = (await response.text()).slice(0, 200000);
       const metaUrl = getMetaRefresh(html);
 
-if (metaUrl) {
-  const next = validUrl(metaUrl, current);
+      if (metaUrl) {
+        const next = validUrl(metaUrl, current);
 
-  if (!next) {
-    throw new Error("Meta Refresh tidak valid");
-  }
+        if (!next) {
+          throw new Error("Meta Refresh tidak valid");
+        }
 
-  if (ALLOWED_HOSTS.includes(next.hostname)) {
-    current = next;
-    continue;
-  }
+        if (ALLOWED_HOSTS.includes(next.hostname)) {
+          current = next;
+          continue;
+        }
 
-  return res.status(200).json({
-    success: true,
-    destination: next.href,
-    method: "meta-refresh"
-  });
-}
+        return res.status(200).json({
+          success: true,
+          destination: next.href,
+          method: "meta-refresh"
+        });
+      }
 
       return res.status(200).json({
         success: false,
-        message: "Halaman perantara ditemukan. Redirect JavaScript atau verifikasi manual mungkin diperlukan."
+        message: "Halaman perantara ditemukan. Redirect JavaScript atau verifikasi mungkin diperlukan."
       });
     }
 
