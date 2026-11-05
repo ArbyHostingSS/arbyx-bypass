@@ -114,39 +114,71 @@ button.secondary{background:#252d43}
 <script>
 let currentUrl = "";
 
-function processLink(){
+async function processLink() {
   const input = document.getElementById("url").value.trim();
   const result = document.getElementById("result");
+  const message = result.querySelector("p");
+  const destination = document.getElementById("destination");
+  const buttons = result.querySelectorAll("button");
+
+  if (!input) {
+    alert("Masukkan link terlebih dahulu!");
+    return;
+  }
 
   try {
     const parsed = new URL(input);
 
-    if(!["http:","https:"].includes(parsed.protocol)){
-      throw new Error("URL tidak didukung");
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("URL tidak valid");
     }
 
-    currentUrl = parsed.href;
-
-    document.getElementById("destination").href = currentUrl;
-    document.getElementById("destination").textContent = currentUrl;
-
     result.style.display = "block";
-  } catch(error){
-    alert("Masukkan URL yang valid!");
+    message.textContent = "Sedang memproses link...";
+    destination.style.display = "none";
+    buttons.forEach(button => button.style.display = "none");
+
+    currentUrl = "";
+
+    const response = await fetch(
+      "/api/resolve?url=" + encodeURIComponent(parsed.href)
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Gagal memproses link");
+    }
+
+    currentUrl = data.destination;
+
+    message.textContent = "URL tujuan berhasil ditemukan!";
+    destination.href = currentUrl;
+    destination.textContent = currentUrl;
+    destination.style.display = "block";
+
+    buttons.forEach(button => button.style.display = "block");
+
+  } catch (error) {
+    currentUrl = "";
+    message.textContent = "Gagal: " + error.message;
+    destination.style.display = "none";
+    buttons.forEach(button => button.style.display = "none");
+    result.style.display = "block";
   }
 }
 
-function copyLink(){
-  if(!currentUrl) return;
+function copyLink() {
+  if (!currentUrl) return;
 
   navigator.clipboard.writeText(currentUrl)
-    .then(()=>alert("Link berhasil disalin!"))
-    .catch(()=>alert("Gagal menyalin link."));
+    .then(() => alert("Link berhasil disalin!"))
+    .catch(() => alert("Gagal menyalin link."));
 }
 
-function openLink(){
-  if(currentUrl){
-    window.open(currentUrl,"_blank","noopener,noreferrer");
+function openLink() {
+  if (currentUrl) {
+    window.open(currentUrl, "_blank", "noopener,noreferrer");
   }
 }
 </script>
