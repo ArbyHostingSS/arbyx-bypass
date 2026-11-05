@@ -1,4 +1,47 @@
 const ALLOWED_HOSTS = ["sfl.gl"];
+const MAX_REDIRECTS = 5;
+
+function getMetaRefresh(html) {
+  const tags = html.match(/<meta\b[^>]*>/gi) || [];
+
+  for (const tag of tags) {
+    const equiv = tag.match(
+      /http-equiv\s*=\s*["']?refresh["']?/i
+    );
+
+    if (!equiv) continue;
+
+    const content = tag.match(
+      /content\s*=\s*["']([^"']+)["']/i
+    );
+
+    if (!content) continue;
+
+    const match = content[1].match(
+      /^\s*\d+\s*;\s*url\s*=\s*["']?([^"']+)["']?\s*$/i
+    );
+
+    if (match) return match[1].trim();
+  }
+
+  return null;
+}
+
+function validUrl(value, base) {
+  try {
+    const url = new URL(value, base);
+
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return null;
+    }
+
+    if (url.username || url.password) return null;
+
+    return url;
+  } catch {
+    return null;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -8,21 +51,12 @@ export default async function handler(req, res) {
     });
   }
 
-  let current;
+  let current = validUrl(req.query.url);
 
-  try {
-    current = new URL(req.query.url);
-  } catch {
+  if (!current) {
     return res.status(400).json({
       success: false,
       message: "URL tidak valid"
-    });
-  }
-
-  if (!["http:", "https:"].includes(current.protocol)) {
-    return res.status(400).json({
-      success: false,
-      message: "Protokol tidak didukung"
     });
   }
 
@@ -34,43 +68,82 @@ export default async function handler(req, res) {
   }
 
   try {
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < MAX_REDIRECTS; i++) {
+      if (!ALLOWED_HOSTS.includes(current.hostname)) {
+        return res.status(200).json({
+          success: true,
+          destination: current.href,
+          method: "redirect"
+        });
+      }
+
       const response = await fetch(current.href, {
         method: "GET",
         redirect: "manual",
         headers: {
-          "Range": "bytes=0-0",
-          "User-Agent": "ArbyX-Link-Resolver/1.0"
+          "User-Agent": "ArbyX-Resolver/3.0",
+          "Accept": "text/html"
         },
         signal: AbortSignal.timeout(8000)
       });
 
-      if (![301, 302, 303, 307, 308].includes(response.status)) {
+      const status = response.status;
+      const location = response.headers.get("location");
+
+      if ([301, 302, 303, 307, 308].includes(status)) {
         await response.body?.cancel();
 
-        return res.status(200).json({
-          success: false,
-          message: "Redirect HTTP tidak ditemukan"
-        });
+        if (!location) {
+          throw new Error("Header redirect tidak memiliki tujuan");
+        }
+
+        const next = validUrl(location, current);
+
+        if (!next) {
+          throw new Error("Tujuan redirect tidak valid");
+        }
+
+        current = next;
+        continue;
       }
 
-      const location = response.headers.get("location");
-      await response.body?.cancel();
+      if (!response.ok) {
+        await response.body?.cancel();
 
-      if (!location) break;
+        throw new Error(
+          "Server shortlink merespons HTTP " + status
+        );
+      }
 
-      const next = new URL(location, current);
+      const type = response.headers.get("content-type") || "";
 
-      if (!["http:", "https:"].includes(next.protocol)) break;
+      if (!type.includes("text/html")) {
+        await response.body?.cancel();
 
-      if (!ALLOWED_HOSTS.includes(next.hostname)) {
+        throw new Error("Halaman bukan HTML");
+      }
+
+      const html = (await response.text()).slice(0, 200000);
+      const metaUrl = getMetaRefresh(html);
+
+      if (metaUrl) {
+        const next = validUrl(metaUrl, current);
+
+        if (!next) {
+          throw new Error("Meta Refresh tidak valid");
+        }
+
         return res.status(200).json({
           success: true,
-          destination: next.href
+          destination: next.href,
+          method: "meta-refresh"
         });
       }
 
-      current = next;
+      return res.status(200).json({
+        success: false,
+        message: "Halaman perantara ditemukan. Redirect JavaScript atau verifikasi manual mungkin diperlukan."
+      });
     }
 
     return res.status(200).json({
@@ -79,9 +152,9 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    return res.status(500).json({
+    return res.status(200).json({
       success: false,
-      message: "Gagal memproses redirect"
+      message: error.message || "Gagal memproses link"
     });
   }
 }
