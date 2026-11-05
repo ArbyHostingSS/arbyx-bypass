@@ -126,19 +126,24 @@ export default async function handler(req, res) {
       const html = (await response.text()).slice(0, 200000);
       const metaUrl = getMetaRefresh(html);
 
-      if (metaUrl) {
-        const next = validUrl(metaUrl, current);
+if (metaUrl) {
+  const next = validUrl(metaUrl, current);
 
-        if (!next) {
-          throw new Error("Meta Refresh tidak valid");
-        }
+  if (!next) {
+    throw new Error("Meta Refresh tidak valid");
+  }
 
-        return res.status(200).json({
-          success: true,
-          destination: next.href,
-          method: "meta-refresh"
-        });
-      }
+  if (ALLOWED_HOSTS.includes(next.hostname)) {
+    current = next;
+    continue;
+  }
+
+  return res.status(200).json({
+    success: true,
+    destination: next.href,
+    method: "meta-refresh"
+  });
+}
 
       return res.status(200).json({
         success: false,
