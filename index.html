@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArbyX Bypass</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:Arial,sans-serif;
+  background:#090b14;
+  color:#fff;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+}
+.container{
+  width:100%;
+  max-width:460px;
+  background:#111525;
+  border:1px solid #252d47;
+  border-radius:20px;
+  padding:25px;
+  box-shadow:0 15px 50px #0008;
+}
+.logo{
+  text-align:center;
+  font-size:29px;
+  font-weight:800;
+  margin-bottom:10px;
+}
+.logo span{color:#8b70ff}
+.subtitle{
+  text-align:center;
+  color:#929bb4;
+  font-size:13px;
+  margin-bottom:30px;
+}
+h3{margin-bottom:12px;font-size:16px}
+input{
+  width:100%;
+  padding:16px;
+  border:1px solid #303955;
+  border-radius:11px;
+  background:#090e1c;
+  color:white;
+  outline:none;
+  font-size:14px;
+}
+input:focus{border-color:#8b70ff}
+button{
+  width:100%;
+  padding:15px;
+  margin-top:12px;
+  border:0;
+  border-radius:11px;
+  color:white;
+  background:linear-gradient(100deg,#6755ed,#a04eff);
+  font-size:15px;
+  font-weight:bold;
+  cursor:pointer;
+}
+button.secondary{background:#252d43}
+.result{
+  display:none;
+  margin-top:20px;
+  padding:15px;
+  background:#090e1c;
+  border:1px solid #303955;
+  border-radius:12px;
+  overflow-wrap:anywhere;
+}
+.result p{color:#a9b2ca;font-size:13px;margin-bottom:10px}
+.result a{color:#a995ff;font-size:13px}
+.footer{
+  text-align:center;
+  color:#626d89;
+  font-size:11px;
+  margin-top:25px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">ArbyX <span>Bypass</span></div>
+  <div class="subtitle">Universal Link Helper</div>
+
+  <h3>Masukkan URL</h3>
+  <input id="url" type="text"
+  placeholder="https://example.com/shortlink">
+
+  <button onclick="processLink()">Proses Link</button>
+
+  <div class="result" id="result">
+    <p>URL berhasil divalidasi:</p>
+    <a id="destination" target="_blank"
+    rel="noopener noreferrer"></a>
+    <button class="secondary" onclick="copyLink()">
+      Copy Link
+    </button>
+    <button onclick="openLink()">
+      Buka Link
+    </button>
+  </div>
+
+  <div class="footer">
+    ARBYX BYPASS © 2026<br>
+    Simple • Fast • Modern
+  </div>
+</div>
+
+<script>
+let currentUrl = "";
+
+function processLink(){
+  const input = document.getElementById("url").value.trim();
+  const result = document.getElementById("result");
+
+  try {
+    const parsed = new URL(input);
+
+    if(!["http:","https:"].includes(parsed.protocol)){
+      throw new Error("URL tidak didukung");
+    }
+
+    currentUrl = parsed.href;
+
+    document.getElementById("destination").href = currentUrl;
+    document.getElementById("destination").textContent = currentUrl;
+
+    result.style.display = "block";
+  } catch(error){
+    alert("Masukkan URL yang valid!");
+  }
+}
+
+function copyLink(){
+  if(!currentUrl) return;
+
+  navigator.clipboard.writeText(currentUrl)
+    .then(()=>alert("Link berhasil disalin!"))
+    .catch(()=>alert("Gagal menyalin link."));
+}
+
+function openLink(){
+  if(currentUrl){
+    window.open(currentUrl,"_blank","noopener,noreferrer");
+  }
+}
+</script>
+</body>
+  </html>
+  
